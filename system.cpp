@@ -24,10 +24,12 @@ TicketSystem::TicketSystem() {
 TicketSystem::~TicketSystem() {
     delete[] users;
     for(int i=0; i<trainCount; ++i) {
-        if(trains[i].stations) delete[] trains[i].stations;
-        if(trains[i].segmentPrices) delete[] trains[i].segmentPrices;
-        if(trains[i].travelTimes) delete[] trains[i].travelTimes;
-        if(trains[i].stopoverTimes) delete[] trains[i].stopoverTimes;
+        if(trains[i].active) {
+            if(trains[i].stations) delete[] trains[i].stations;
+            if(trains[i].segmentPrices) delete[] trains[i].segmentPrices;
+            if(trains[i].travelTimes) delete[] trains[i].travelTimes;
+            if(trains[i].stopoverTimes) delete[] trains[i].stopoverTimes;
+        }
     }
     delete[] trains;
     delete[] orders;
@@ -78,8 +80,6 @@ string TicketSystem::absoluteMinsToDateTime(int absMins) {
         d -= months[m];
         m++;
     }
-    if (m > 12) { m = 12; d = days; // Fallback
-    }
     
     char buf[20];
     sprintf(buf, "%02d-%02d %02d:%02d", m, d, mins/60, mins%60);
@@ -89,6 +89,15 @@ string TicketSystem::absoluteMinsToDateTime(int absMins) {
 int TicketSystem::addUser(string cur_user, string u, string p, string n, string m, int g) {
     if(findUser(u) != -1) return -1;
     
+    if(userCount >= userCapacity) {
+        int newCap = userCapacity * 2;
+        User* newUsers = new User[newCap];
+        for(int i=0; i<userCount; ++i) newUsers[i] = users[i];
+        delete[] users;
+        users = newUsers;
+        userCapacity = newCap;
+    }
+
     if(userCount == 0) {
         users[userCount].username = u;
         users[userCount].password = p;
@@ -117,6 +126,7 @@ int TicketSystem::login(string u, string p) {
     int idx = findUser(u);
     if(idx == -1 || users[idx].password != p) return -1;
     for(int i=0; i<currentUsersCount; ++i) if(currentUsers[i] == u) return -1;
+    if(currentUsersCount >= 100) return -1; // Limit based on system.hpp
     currentUsers[currentUsersCount++] = u;
     return 0;
 }
@@ -167,6 +177,15 @@ string TicketSystem::modifyProfile(string c, string u, string p, string n, strin
 
 int TicketSystem::addTrain(string i, int n, int m, string s, string p, string x, string t, string o, string d, string y) {
     if(findTrain(i) != -1) return -1;
+
+    if(trainCount >= trainCapacity) {
+        int newCap = trainCapacity * 2;
+        Train* newTrains = new Train[newCap];
+        for(int j=0; j<trainCount; ++j) newTrains[j] = trains[j];
+        delete[] trains;
+        trains = newTrains;
+        trainCapacity = newCap;
+    }
 
     Train& tr = trains[trainCount++];
     tr.trainID = i;
@@ -281,6 +300,14 @@ int TicketSystem::refundTicket(string u, int n) {
 }
 
 int TicketSystem::clean() {
+    for(int i=0; i<trainCount; ++i) {
+        if(trains[i].active) {
+            if(trains[i].stations) delete[] trains[i].stations;
+            if(trains[i].segmentPrices) delete[] trains[i].segmentPrices;
+            if(trains[i].travelTimes) delete[] trains[i].travelTimes;
+            if(trains[i].stopoverTimes) delete[] trains[i].stopoverTimes;
+        }
+    }
     userCount = 0;
     trainCount = 0;
     orderCount = 0;
