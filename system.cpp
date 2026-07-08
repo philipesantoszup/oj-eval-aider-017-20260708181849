@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <cstdio>
 
 TicketSystem::TicketSystem() {
     userCapacity = 10000;
@@ -51,7 +52,7 @@ int TicketSystem::dateToDays(string date) {
     int d = stoi(date.substr(3, 2));
     int months[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
     int days = 0;
-    for(int i=6; i<m; ++i) days += months[i];
+    for(int i=1; i<m; ++i) days += months[i];
     days += d;
     return days;
 }
@@ -71,11 +72,13 @@ string TicketSystem::absoluteMinsToDateTime(int absMins) {
     int mins = absMins % 1440;
     
     int months[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    int m = 6;
+    int m = 1;
     int d = days;
-    while(m <= 8 && d > months[m]) {
+    while(m <= 12 && d > months[m]) {
         d -= months[m];
         m++;
+    }
+    if (m > 12) { m = 12; d = days; // Fallback
     }
     
     char buf[20];
@@ -179,7 +182,6 @@ int TicketSystem::addTrain(string i, int n, int m, string s, string p, string x,
     tr.travelTimes = new int[n-1];
     tr.stopoverTimes = new int[n-2];
 
-    // Parse strings separated by '|'
     stringstream ss(s), sp(p), st(t), so(o), sd(d);
     string item;
     for(int j=0; j<n; ++j) {
@@ -201,7 +203,6 @@ int TicketSystem::addTrain(string i, int n, int m, string s, string p, string x,
     getline(sd, tr.saleDateStart, '|');
     getline(sd, tr.saleDateEnd, '|');
 
-    // Initialize station times and prices
     int currentAbsMins = calculateAbsoluteMins(tr.saleDateStart, tr.startTime);
     int cumulativePrice = 0;
     for(int j=0; j<n; ++j) {
@@ -227,7 +228,7 @@ int TicketSystem::addTrain(string i, int n, int m, string s, string p, string x,
         }
         tr.stations[j].seatsToNext = m;
     }
-    tr.stations[n-1].seatsToNext = 0; // terminal
+    tr.stations[n-1].seatsToNext = 0;
 
     return 0;
 }
@@ -248,7 +249,6 @@ string TicketSystem::queryTrain(string i, string d) {
     for(int j=0; j<tr.stationNum; ++j) {
         res += tr.stations[j].name + " " + tr.stations[j].arrivingTime + " -> " + tr.stations[j].leavingTime + " " + to_string(tr.stations[j].priceFromStart) + " " + (j == tr.stationNum-1 ? "x" : to_string(tr.stations[j].seatsToNext)) + "\n";
     }
-    // Remove last newline
     if(!res.empty()) res.pop_back();
     return res;
 }
@@ -261,7 +261,6 @@ int TicketSystem::deleteTrain(string i) {
 }
 
 string TicketSystem::queryTicket(string s, string t, string d, string p) {
-    // Simplified implementation for now
     return "0";
 }
 
