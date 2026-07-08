@@ -269,41 +269,13 @@ string TicketSystem::queryTrain(string i, string d) {
     int startDay = dateToDays(tr.saleDateStart);
     int endDay = dateToDays(tr.saleDateEnd);
     
-    // The train departs from the first station on some day 'sd' in [startDay, endDay].
-    // We need to find if there's an 'sd' such that the train is active on date 'd'.
-    // Since the train can take multiple days, we check if 'd' falls within the window
-    // of the train's journey starting on any 'sd'.
-    
-    // For simplicity, the problem says "departing on date -d". 
-    // This usually means the train's first station departure is on date 'd'.
-    // Let's check if 'd' is within [saleDateStart, saleDateEnd].
     if(targetDay < startDay || targetDay > endDay) return "-1";
 
     int shift = (targetDay - startDay) * 1440;
-    string res = tr.trainID + " " + tr.type + "\n";
-    for(int j=0; j<tr.stationNum; ++j) {
-        string arr = tr.stations[j].arrivingTime;
-        string dep = tr.stations[j].leavingTime;
-        
-        if(arr != "xx-xx xx:xx") {
-            int abs = calculateAbsoluteMins(arr, "00:00") + shift; // This is wrong, but let's fix it
-            // Correct way: calculate absolute mins of the first-day time, add shift, then convert back.
-            // But the stations array already has the first-day times.
-            // Let's use a helper to shift a date-time string.
-        }
-        
-        // Re-calculating times for the specific date 'd'
-        int firstStationDepAbs = calculateAbsoluteMins(tr.saleDateStart, tr.startTime) + shift;
-        int currentAbs = firstStationDepAbs;
-        
-        // This is inefficient. Let's just use the precalculated first-day times and shift them.
-    }
-    
-    // Corrected loop for queryTrain
-    res = tr.trainID + " " + tr.type + "\n";
     int firstDayStartAbs = calculateAbsoluteMins(tr.saleDateStart, tr.startTime);
     int currentAbs = firstDayStartAbs + shift;
     
+    string res = tr.trainID + " " + tr.type + "\n";
     for(int j=0; j<tr.stationNum; ++j) {
         string arrStr = "xx-xx xx:xx";
         string depStr = "xx-xx xx:xx";
@@ -360,12 +332,12 @@ string TicketSystem::queryTicket(string s, string t, string d, string p) {
         }
         if(startIdx == -1 || endIdx == -1 || startIdx >= endIdx) continue;
 
-        // Find if there's a start date 'sd' such that the train departs from 's' on date 'd'.
         int depOffset = 0;
         for(int j=0; j<startIdx; ++j) {
             depOffset += tr.travelTimes[j];
             if(j > 0) depOffset += tr.stopoverTimes[j-1];
         }
+        if(startIdx > 0) depOffset += tr.stopoverTimes[startIdx-1];
         
         int sdDay = dateToDays(tr.saleDateStart);
         int edDay = dateToDays(tr.saleDateEnd);
@@ -374,42 +346,16 @@ string TicketSystem::queryTicket(string s, string t, string d, string p) {
         if(sd >= sdDay && sd <= edDay) {
             int shift = (sd - sdDay) * 1440;
             int firstDayStartAbs = calculateAbsoluteMins(tr.saleDateStart, tr.startTime);
-            int depAbs = firstDayStartAbs + depOffset + shift * 1440;
+            int finalDepAbs = firstDayStartAbs + depOffset + shift * 1440;
             
-            int arrAbs = depAbs;
+            int finalArrAbs = finalDepAbs;
             int price = 0;
             int minSeat = tr.seatNum;
             for(int j=startIdx; j<endIdx; ++j) {
-                arrAbs += tr.travelTimes[j];
-                if(j > 0 && j < endIdx) {
-                    // This is not quite right, but let's use the travelTimes
-                }
-                price += tr.segmentPrices[j];
-                if(tr.stations[j].seatsToNext < minSeat) minSeat = tr.stations[j].seatsToNext;
-            }
-            // Correct arrAbs: it's depAbs + sum of travelTimes and stopovers between startIdx and endIdx
-            int actualArrAbs = depAbs;
-            for(int j=startIdx; j<endIdx; ++j) {
-                actualArrAbs += tr.travelTimes[j];
-                if(j > 0 && j < endIdx) {
-                    // wait, the stopover is at the station.
-                }
-            }
-            // Let's just use the precalculated first-day times and shift them.
-            int firstDayDepAbs = calculateAbsoluteMins(tr.stations[startIdx].leavingTime, "00:00"); // This is wrong.
-            // Let's use the logic from queryTrain.
-            int currentAbs = firstDayStartAbs + (sd - sdDay) * 1440;
-            for(int j=0; j<startIdx; ++j) {
-                currentAbs += tr.travelTimes[j];
-                if(j > 0) currentAbs += tr.stopoverTimes[j-1];
-            }
-            if(startIdx > 0) currentAbs += tr.stopoverTimes[startIdx-1];
-            
-            int finalDepAbs = currentAbs;
-            int finalArrAbs = finalDepAbs;
-            for(int j=startIdx; j<endIdx; ++j) {
                 finalArrAbs += tr.travelTimes[j];
                 if(j > startIdx) finalArrAbs += tr.stopoverTimes[j-1];
+                price += tr.segmentPrices[j];
+                if(tr.stations[j].seatsToNext < minSeat) minSeat = tr.stations[j].seatsToNext;
             }
 
             matches.push_back({tr.trainID, s, absoluteMinsToDateTime(finalDepAbs), t, absoluteMinsToDateTime(finalArrAbs), price, minSeat, finalArrAbs - finalDepAbs});
